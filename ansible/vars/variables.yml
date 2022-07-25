@@ -1,0 +1,30 @@
+k3s_version: v1.24.1+k3s1
+nextcloud_domain: localhost
+object_store_config: #|-2
+#   s3.config.php: |-
+#         <?php
+#         $CONFIG = array (
+#           'objectstore' => array(
+#             'class' => '\\OC\\Files\\ObjectStore\\S3',
+#             'arguments' => array(
+#               'bucket'     => ',
+#               'autocreate' => true,
+#               'key'        => '',
+#               'secret'     => '',
+#               'region'     => ',
+#               'hostname'   => '',
+#               'use_path_style' => true,
+#               'legacy_auth' => true,
+#               'use_ssl'    => true
+#             )
+#           )
+#         );
+use_docker: no
+generate_key: yes
+certificate_file_name: 'nc.crt'
+private_key_file_name: 'nc-privatekey.pem'
+local_volume: no
+pg_user: nextcloud
+pg_password: myverysecurepassword
+pg_external: no
+pg_external_host:

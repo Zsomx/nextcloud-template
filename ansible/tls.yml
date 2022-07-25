@@ -1,0 +1,45 @@
+---
+  - hosts: localhost
+    become: yes
+    vars_files:
+      - ./vars/variables.yml
+    tasks:
+      - name: Generate an OpenSSL private key
+        openssl_privatekey:
+          path: /opt/ansible/files/generated/nc-privatekey.pem
+        when: generate_key
+      - name: Generate an OpenSSL Certificate Signing Request
+        openssl_csr:
+          path: /opt/ansible/files/generated/nc.csr
+          privatekey_path: /opt/ansible/files/generated/nc-privatekey.pem
+          common_name: localhost
+        when: generate_key
+      - name: Generate a Self Signed OpenSSL certificate
+        openssl_certificate:
+          path: /opt/ansible/files/generated/nc.crt
+          privatekey_path: /opt/ansible/files/generated/nc-privatekey.pem
+          csr_path: /opt/ansible/files/generated/nc.csr
+          provider: selfsigned
+        when: generate_key
+      - name: Copy certs
+        copy:
+          src: "./files/{{ item }}"
+          dest: "/opt/ansible/files/{{ item }}"
+        loop:
+          - "{{ certificate_file_name }}"
+          - "{{ private_key_file_name }}"
+        when: not generate_key
+      - name: Register generated TLS variables
+        set_fact:
+          certificate:  "{{ lookup('file', '/opt/ansible/files/generated/nc.crt') | b64encode }}"
+          private_key:  "{{ lookup('file', '/opt/ansible/files/generated/nc-privatekey.pem') | b64encode }}"
+        when: generate_key
+      - name: Register existing TLS variables
+        set_fact:
+          certificate:  "{{ lookup('file', '/opt/ansible/files/' + certificate_file_name) | b64encode }}"
+          private_key:  "{{ lookup('file', '/opt/ansible/files/' + private_key_file_name) | b64encode }}"
+        when: not generate_key
+      - name: Generating TLS secret K3s object
+        template:
+          src: templates/tls-secret.j2
+          dest: /opt/ansible/files/generated/tls-secret.yml

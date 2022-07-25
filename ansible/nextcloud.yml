@@ -1,0 +1,39 @@
+---
+  - hosts: localhost
+    become: yes
+    vars_files:
+      - ./vars/variables.yml
+    tasks:
+      - name: Generate administrator password
+        # Source: https://www.howtogeek.com/howto/30184/10-ways-to-generate-a-random-password-from-the-command-line/
+        shell: date +%s | sha256sum | base64 | head -c 32 ; echo
+        register: admin_pw
+      - name: Generated password for admin user
+        debug:
+          var: admin_pw.stdout
+      - name: Generate chart values
+        template:
+          src: templates/chart-values.j2
+          dest: /opt/ansible/files/generated/chart-values.yml
+      - name: Generate ingress
+        template:
+          src: templates/ingress.j2
+          dest: /opt/ansible/files/generated/ingress.yml
+      - name: Create a K3s namespace
+        shell: kubectl apply -f /opt/ansible/files/namespace.yml
+      - name: Install NextCloud
+        kubernetes.core.helm:
+          chart_version: 2.14.3
+          name: nextcloud
+          release_state: present
+          release_namespace: nextcloud
+          chart_ref: nextcloud/nextcloud
+          kubeconfig: /etc/rancher/k3s/k3s.yaml
+          values_files:
+           - "/opt/ansible/files/generated/chart-values.yml"
+      - name: Create K3s TLS secret
+        shell: kubectl apply -f /opt/ansible/files/generated/tls-secret.yml
+      - name: Create K3S ingress
+        shell: kubectl apply -f /opt/ansible/files/generated/ingress.yml
+        
+
