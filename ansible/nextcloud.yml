@@ -23,7 +23,7 @@
         shell: kubectl apply -f /opt/ansible/files/namespace.yml
       - name: Install NextCloud
         kubernetes.core.helm:
-          chart_version: 2.14.3
+          chart_version: "{{ helm_chart_version }}"
           name: nextcloud
           release_state: present
           release_namespace: nextcloud

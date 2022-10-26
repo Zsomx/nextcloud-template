@@ -11,12 +11,6 @@
           path: /opt/ansible/files/generated
           state: directory
           mode: '0755'
-      - name: Create Nextcloud hostPath volume
-        file:
-          path: /mnt/nextcloud_volume
-          state: directory
-          mode: '0755'
-        when: local_volume
       - name: Installing fail2ban
         apt:
           name: fail2ban

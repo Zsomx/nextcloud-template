@@ -3,7 +3,7 @@
 ##
 image:
   repository: nextcloud
-  tag: 23.0.3-apache
+  tag: {{ nextcloud_version }}
   pullPolicy: IfNotPresent
   # pullSecrets:
   #   - myRegistrKeySecretName
@@ -151,17 +151,14 @@ nextcloud:
   # Extra mounts for the pods. Example shown is for connecting a legacy NFS volume
   # to NextCloud pods in Kubernetes. This can then be configured in External Storage
   extraVolumes:
-{% if local_volume %}
-    - name: local-volume
-      hostPath: 
-        path: /mnt/nextcloud_volume
-        type: DirectoryOrCreate
-{% endif %}
+  #  - name: local-volume
+  #    hostPath: 
+  #      path: /mnt/nextcloud_volume
+  #      type: DirectoryOrCreate
+
   extraVolumeMounts:
-{% if local_volume %}
-     - name: local-volume
-       mountPath: /var/www/html/
-{% endif %}
+  #   - name: local-volume
+  #     mountPath: /var/www/html
 
   # Extra secuurityContext parameters. For example you may need to define runAsNonRoot directive
   # extraSecurityContext:
@@ -187,14 +184,14 @@ nginx:
   resources: {}
 
 internalDatabase:
-  enabled: false
+  enabled: {{ sqlite_db | bool }}
   name: nextcloud
 
 ##
 ## External database configuration
 ##
 externalDatabase:
-  enabled: {{ pg_external | d() | bool }}
+  enabled: {{ pg_external and not sqlite_db | d() | bool }}
   ## Supported database engines: mysql or postgresql
   type: postgresql
 
@@ -246,7 +243,7 @@ mariadb:
 ## for more options see https://github.com/bitnami/charts/tree/master/bitnami/postgresql
 ##
 postgresql:
-  enabled: {{ not pg_external | d() | bool  }}
+  enabled: {{ not pg_external and not sqlite_db | d() | bool  }}
   global:
     postgresql:
       auth:
@@ -255,8 +252,12 @@ postgresql:
         database: nextcloud
   primary:
     persistence:
-      enabled: false
-      # storageClass: ""
+      enabled: {{ local_volume }}
+      {% if local_volume | bool %}
+storageClass: "local-path"
+      {% else %}
+# storageClass: ""
+      {% endif %}
 
 ##
 ## Redis chart configuration
@@ -323,7 +324,7 @@ service:
 ##
 persistence:
   # Nextcloud Data (/var/www/html)
-  enabled: false
+  enabled: {{ local_volume }}
   annotations: {}
   ## nextcloud data Persistent Volume Storage Class
   ## If defined, storageClassName: <storageClass>
@@ -332,7 +333,11 @@ persistence:
   ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
   ##   GKE, AWS & OpenStack)
   ##
-  # storageClass: "-"
+  {% if local_volume  %}
+storageClass: "local-path"
+  {% else %}
+storageClass: "-"
+  {% endif %}
 
   ## A manually managed Persistent Volume and Claim
   ## Requires persistence.enabled: true
@@ -340,7 +345,7 @@ persistence:
   # existingClaim:
 
   accessMode: ReadWriteOnce
-  size: 8Gi
+  size: {{ local_volume_size_gb }}Gi
 
   ## Use an additional pvc for the data directory rather than a subpath of the default PVC
   ## Useful to store data on a different storageClass (e.g. on slower disks)
